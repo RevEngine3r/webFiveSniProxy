@@ -1,0 +1,5 @@
+github.com/haochen233/socks5 v1.0.0 h1:OSC4QGjKxdb7hznD7B6v7Lg5t0liq9YR29Qk9P2metM=
+github.com/haochen233/socks5 v1.0.0/go.mod h1:EoQMEeagQ7UP/h+jeFwDV+0Av7zb45iPN6ZWrDKexD0=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
+gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
