@@ -85,6 +85,7 @@ func main() {
 			conn, err := l.Accept()
 			if err != nil {
 				log.Print(err)
+				time.Sleep(1 * time.Millisecond)
 				continue
 			}
 			go handleConnection(conn, false)
@@ -104,6 +105,7 @@ func main() {
 			conn, err := l.Accept()
 			if err != nil {
 				log.Print(err)
+				time.Sleep(1 * time.Millisecond)
 				continue
 			}
 			go handleConnection(conn, true)
@@ -133,7 +135,7 @@ func handleConnection(clientConn net.Conn, isHttps bool) {
 		}
 	}(clientConn)
 
-	if err := clientConn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+	if err := clientConn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		log.Print(err)
 		return
 	}
@@ -166,12 +168,17 @@ func handleConnection(clientConn net.Conn, isHttps bool) {
 		log.Print(err)
 		return
 	}
-	defer func(backendConn *net.TCPConn) {
+
+	defer func(backendConn *net.TCPConn, clientConn net.Conn) {
 		err := backendConn.Close()
 		if err != nil {
-
+			log.Print(err)
 		}
-	}(backendConn)
+		err = clientConn.Close()
+		if err != nil {
+			log.Print(err)
+		}
+	}(backendConn, clientConn)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
