@@ -76,16 +76,23 @@ func main() {
 
 	// Http listener
 	go func() {
-		l, err := net.Listen("tcp", net.JoinHostPort(config.Server.HttpHost, config.Server.HttpPort))
+		tcpAddr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(config.Server.HttpHost, config.Server.HttpPort))
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		l, err := net.ListenTCP("tcp", tcpAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		log.Printf("Http Server Listening on: %v:%v", config.Server.HttpHost, config.Server.HttpPort)
+
 		for {
-			conn, err := l.Accept()
+			conn, err := l.AcceptTCP()
 			if err != nil {
 				log.Print(err)
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(time.Second)
 				continue
 			}
 			go handleConnection(conn, false)
@@ -96,16 +103,23 @@ func main() {
 
 	// Https listener
 	go func() {
-		l, err := net.Listen("tcp", net.JoinHostPort(config.Server.HttpsHost, config.Server.HttpsPort))
+		tcpAddr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(config.Server.HttpsHost, config.Server.HttpsPort))
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		l, err := net.ListenTCP("tcp", tcpAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		log.Printf("Https Server Listening on: %v:%v", config.Server.HttpsHost, config.Server.HttpsPort)
+
 		for {
-			conn, err := l.Accept()
+			conn, err := l.AcceptTCP()
 			if err != nil {
 				log.Print(err)
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(time.Second)
 				continue
 			}
 			go handleConnection(conn, true)
@@ -117,7 +131,7 @@ func main() {
 	wg.Wait()
 }
 
-func peekServerName(clientConn net.Conn, isHttps bool) (string, io.Reader, error) {
+func peekServerName(clientConn *net.TCPConn, isHttps bool) (string, io.Reader, error) {
 	if isHttps {
 		log.Print("https client...")
 		return handlers.PeekClientHello(clientConn)
@@ -127,27 +141,10 @@ func peekServerName(clientConn net.Conn, isHttps bool) (string, io.Reader, error
 	return handlers.PeekHttpReq(clientConn)
 }
 
-func handleConnection(clientConn net.Conn, isHttps bool) {
-	defer func(clientConn net.Conn) {
-		err := clientConn.Close()
-		if err != nil {
-
-		}
-	}(clientConn)
-
-	if err := clientConn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
-		log.Print(err)
-		return
-	}
-
+func handleConnection(clientConn *net.TCPConn, isHttps bool) {
 	serverName, clientReader, err := peekServerName(clientConn, isHttps)
 
 	if err != nil {
-		log.Print(err)
-		return
-	}
-
-	if err := clientConn.SetReadDeadline(time.Time{}); err != nil {
 		log.Print(err)
 		return
 	}
@@ -178,34 +175,54 @@ func handleConnection(clientConn net.Conn, isHttps bool) {
 		if err != nil {
 			log.Print(err)
 		}
+		log.Print("Connection closed: " + serverName)
 	}(backendConn, clientConn)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 
 	go func() {
 		_, err := io.Copy(clientConn, backendConn)
 		if err != nil {
 			log.Print(err)
-			return
 		}
-		err = clientConn.(*net.TCPConn).CloseWrite()
+
+		err = backendConn.CloseRead()
 		if err != nil {
 			log.Print(err)
-			return
 		}
-		wg.Done()
+
+		err = clientConn.CloseWrite()
+		if err != nil {
+			log.Print(err)
+		}
 	}()
 	go func() {
-		_, err := io.Copy(backendConn, clientReader)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		err = backendConn.CloseWrite()
-		if err != nil {
-			log.Print(err)
-			return
+		for {
+			err := clientConn.SetReadDeadline(time.Now().Add(30 * time.Second))
+
+			if err == nil {
+				writtenBytes, err := io.Copy(backendConn, clientReader)
+				if err != nil {
+					log.Print(err)
+				}
+				if writtenBytes == 0 {
+					err = clientConn.CloseRead()
+					if err != nil {
+						log.Print(err)
+					}
+
+					err := backendConn.CloseWrite()
+					if err != nil {
+						log.Print(err)
+					}
+
+					break
+				}
+			} else {
+				log.Print(err)
+				break
+			}
 		}
 		wg.Done()
 	}()

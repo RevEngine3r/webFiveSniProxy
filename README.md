@@ -5,7 +5,7 @@ a web server like nginx witch has reverse proxy who forwards traffic to socks5 i
 
 Requirements:
 
-1. A Socks5 Server (Like Shadowsocks...).
+1. A Socks5 Server.
 2. A DNS Server (Like AdGuardHome...).
 3. WebFive SNI Proxy.
 
